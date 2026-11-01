@@ -111,7 +111,8 @@ jobs:
           test -d praat.xcodeproj
 
       - name: Build and package
-        shell: ${{ startsWith(matrix.id, 'win-') && 'msys2 {0}' || 'bash' }}
+        if: ${{ !startsWith(matrix.id, 'win-') }}
+        shell: bash
         env:
           VERSION: ${{ inputs.version }}
           TARGET: ${{ matrix.id }}
@@ -130,18 +131,6 @@ jobs:
               ditto -c -k --sequesterRsrc --keepParent \
                 build/macos/Build/Products/Release/Praat.app \
                 "dist/praat${compact_version}_mac.zip"
-              ;;
-            win-x64v3|win-x64v1|win-arm64|win-i686)
-              case "$TARGET" in
-                win-x64v3) arch=x64v3; suffix=win-x64v3; compiler=clang ;;
-                win-x64v1) arch=x64v1; suffix=win-x64v1; compiler=clang ;;
-                win-arm64) arch=arm64; suffix=win-arm64; compiler=clang ;;
-                win-i686) arch=i686; suffix=win-intel32; compiler=gcc ;;
-              esac
-              make -j"$(nproc)" PRAAT_OS=windows PRAAT_ARCH="$arch" \
-                PRAAT_COMPILER="$compiler"
-              test -f Praat.exe
-              7z a -tzip "dist/praat${compact_version}_${suffix}.zip" Praat.exe >/dev/null
               ;;
             linux-x64v3|linux-arm64)
               case "$TARGET" in
@@ -162,6 +151,37 @@ jobs:
                 PRAAT_GRAPHICS=barren PRAAT_AUDIO=none
               test -f praat_barren
               tar -czf "dist/praat${compact_version}_${suffix}.tar.gz" praat_barren
+              ;;
+            *)
+              echo "Unsupported release target: $TARGET" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Build and package on Windows
+        if: ${{ startsWith(matrix.id, 'win-') }}
+        shell: msys2 {0}
+        env:
+          VERSION: ${{ inputs.version }}
+          TARGET: ${{ matrix.id }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([A-Za-z0-9.-]*)$ ]]
+          mkdir -p dist
+          compact_version="${VERSION//./}"
+
+          case "$TARGET" in
+            win-x64v3|win-x64v1|win-arm64|win-i686)
+              case "$TARGET" in
+                win-x64v3) arch=x64v3; suffix=win-x64v3; compiler=clang ;;
+                win-x64v1) arch=x64v1; suffix=win-x64v1; compiler=clang ;;
+                win-arm64) arch=arm64; suffix=win-arm64; compiler=clang ;;
+                win-i686) arch=i686; suffix=win-intel32; compiler=gcc ;;
+              esac
+              make -j"$(nproc)" PRAAT_OS=windows PRAAT_ARCH="$arch" \
+                PRAAT_COMPILER="$compiler"
+              test -f Praat.exe
+              7z a -tzip "dist/praat${compact_version}_${suffix}.zip" Praat.exe >/dev/null
               ;;
             *)
               echo "Unsupported release target: $TARGET" >&2

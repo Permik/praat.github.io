@@ -125,7 +125,7 @@ jobs:
           case "$TARGET" in
             mac)
               test -d praat.xcodeproj
-              xcodebuild -project praat.xcodeproj -target praat_mac -configuration Release \
+              xcodebuild -project praat.xcodeproj -scheme praat_mac -configuration Release \
                 -derivedDataPath build/macos \
                 CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
               ditto -c -k --sequesterRsrc --keepParent \

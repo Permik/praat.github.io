@@ -39,40 +39,33 @@ jobs:
         include:
           - id: mac
             name: macOS universal
-            runs_on: '["self-hosted", "macOS", "xcode"]'
+            runs_on: '["macos-14"]'
           - id: win-x64v3
             name: Windows x64-v3
-            runs_on: '["self-hosted", "Windows", "msys2", "clang64"]'
+            runs_on: '["windows-2022"]'
+            msystem: CLANG64
+            toolchain: mingw-w64-clang-x86_64-clang
           - id: win-x64v1
             name: Windows x64-v1
-            runs_on: '["self-hosted", "Windows", "msys2", "clang64"]'
+            runs_on: '["windows-2022"]'
+            msystem: CLANG64
+            toolchain: mingw-w64-clang-x86_64-clang
           - id: win-arm64
             name: Windows ARM64
-            runs_on: '["self-hosted", "Windows", "msys2", "clangarm64"]'
+            runs_on: '["windows-11-arm"]'
+            msystem: CLANGARM64
+            toolchain: mingw-w64-clang-aarch64-clang
           - id: win-i686
             name: Windows i686
-            runs_on: '["self-hosted", "Windows", "msys2", "mingw32"]'
+            runs_on: '["windows-2022"]'
+            msystem: MINGW32
+            toolchain: mingw-w64-i686-gcc
           - id: linux-x64v3
             name: Linux x64-v3
             runs_on: '["ubuntu-24.04"]'
           - id: linux-arm64
             name: Linux ARM64
             runs_on: '["ubuntu-24.04-arm"]'
-          - id: linux-s390x
-            name: Linux s390x
-            runs_on: '["self-hosted", "Linux", "s390x"]'
-          - id: linux-s390x-barren
-            name: Linux s390x barren
-            runs_on: '["self-hosted", "Linux", "s390x"]'
-          - id: chrome-x64v1
-            name: ChromeOS x64-v1
-            runs_on: '["self-hosted", "Linux", "ChromeOS", "x64"]'
-          - id: chrome-arm64
-            name: ChromeOS ARM64
-            runs_on: '["self-hosted", "Linux", "ChromeOS", "arm64"]'
-          - id: rpi-armv7
-            name: Raspberry Pi ARMv7
-            runs_on: '["self-hosted", "Linux", "RaspberryPi", "armv7"]'
           - id: linux-x64v3-barren
             name: Linux x64-v3 barren
             runs_on: '["ubuntu-24.04"]'
@@ -88,20 +81,37 @@ jobs:
           ref: ${{ inputs.source_ref }}
 
       - name: Install Linux dependencies
-        if: startsWith(matrix.id, 'linux-') && matrix.id != 'linux-s390x' && matrix.id != 'linux-s390x-barren'
+        if: startsWith(matrix.id, 'linux-')
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
             g++ make pkg-config libgtk-3-dev libasound2-dev libpulse-dev libjack-jackd2-dev
 
+      - name: Install Windows toolchain
+        if: startsWith(matrix.id, 'win-')
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            make
+            p7zip
+            ${{ matrix.toolchain }}
+
       - name: Restore macOS Xcode project
         if: matrix.id == 'mac'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROJECT_REPOSITORY: praat/praat.github.io
         run: |
-          test -d /opt/praat/praat.xcodeproj
-          cp -R /opt/praat/praat.xcodeproj .
+          gh release download --repo "$PROJECT_REPOSITORY" --pattern '*xcodeproj.zip' --dir .
+          project_archive="$(find . -maxdepth 1 -name '*xcodeproj.zip' -print -quit)"
+          test -n "$project_archive"
+          unzip -q "$project_archive"
+          test -d praat.xcodeproj
 
       - name: Build and package
-        shell: bash
+        shell: ${{ startsWith(matrix.id, 'win-') && 'msys2 {0}' || 'bash' }}
         env:
           VERSION: ${{ inputs.version }}
           TARGET: ${{ matrix.id }}
@@ -133,24 +143,19 @@ jobs:
               test -f Praat.exe
               7z a -tzip "dist/praat${compact_version}_${suffix}.zip" Praat.exe >/dev/null
               ;;
-            linux-x64v3|linux-arm64|linux-s390x|chrome-x64v1|chrome-arm64|rpi-armv7)
+            linux-x64v3|linux-arm64)
               case "$TARGET" in
                 linux-x64v3) os=linux; arch=x64v3; suffix=linux-x64v3 ;;
                 linux-arm64) os=linux; arch=arm64; suffix=linux-arm64 ;;
-                linux-s390x) os=linuxone; arch=s390x; suffix=linux-s390x ;;
-                chrome-x64v1) os=chrome; arch=x64v1; suffix=chrome-x64v1 ;;
-                chrome-arm64) os=chrome; arch=arm64; suffix=chrome-arm64 ;;
-                rpi-armv7) os=raspberrypi; arch=native; suffix=rpi-armv7 ;;
               esac
               make -j"$(nproc)" PRAAT_OS="$os" PRAAT_ARCH="$arch"
               test -f praat
               tar -czf "dist/praat${compact_version}_${suffix}.tar.gz" praat
               ;;
-            linux-x64v3-barren|linux-arm64-barren|linux-s390x-barren)
+            linux-x64v3-barren|linux-arm64-barren)
               case "$TARGET" in
                 linux-x64v3-barren) os=linux; arch=x64v3; suffix=linux-x64v3-barren ;;
                 linux-arm64-barren) os=linux; arch=arm64; suffix=linux-arm64-barren ;;
-                linux-s390x-barren) os=linuxone; arch=s390x; suffix=linux-s390x-barren ;;
               esac
               make clean
               make -j"$(nproc)" PRAAT_OS="$os" PRAAT_ARCH="$arch" \
@@ -193,7 +198,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([A-Za-z0-9.-]*)$ ]]
-          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 14
+          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 9
           tag="v${VERSION}"
           release_flags=(--generate-notes)
           [[ "$PRERELEASE" == "true" ]] && release_flags+=(--prerelease)

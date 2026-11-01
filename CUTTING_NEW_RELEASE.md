@@ -1,10 +1,9 @@
 # Cutting a new release
 
-The **Cut release** workflow builds and packages all 14 currently supported
-Praat editions, then creates one GitHub release containing the resulting
-archives. It is intentionally a manual workflow because a release requires
-version changes, platform testing, and access to the project’s special-purpose
-build machines.
+The **Cut release** workflow builds and packages the GitHub-hosted editions,
+then creates one GitHub release containing the resulting archives. It is
+intentionally a manual workflow because a release requires version changes and
+platform testing.
 
 ## Before starting
 
@@ -16,31 +15,24 @@ build machines.
 4. Verify the GUI and audio behavior of the candidate binaries on each
    platform that you can test before publishing.
 
-## Required runners
+## GitHub-hosted runners
 
-The workflow uses GitHub-hosted Ubuntu runners for Linux x64-v3 and Linux
-ARM64. The remaining targets require self-hosted runners with the labels below.
-Each runner must have the compiler, SDK, and system libraries needed by
-`HOW_TO_BUILD_ONE.md` already installed, and must provide a Bash shell.
+The workflow uses GitHub-hosted runners for every edition that GitHub supports.
+Linux s390x, ChromeOS, and Raspberry Pi ARMv7 are not available as
+GitHub-hosted runner platforms and are therefore not built by this workflow.
 
-| Editions | Required labels |
+| Editions | Runner |
 | --- | --- |
-| macOS universal | `self-hosted`, `macOS`, `xcode` |
-| Windows x64-v3, x64-v1 | `self-hosted`, `Windows`, `msys2`, `clang64` |
-| Windows ARM64 | `self-hosted`, `Windows`, `msys2`, `clangarm64` |
-| Windows i686 | `self-hosted`, `Windows`, `msys2`, `mingw32` |
-| Linux s390x | `self-hosted`, `Linux`, `s390x` |
-| ChromeOS x64-v1 | `self-hosted`, `Linux`, `ChromeOS`, `x64` |
-| ChromeOS ARM64 | `self-hosted`, `Linux`, `ChromeOS`, `arm64` |
-| Raspberry Pi ARMv7 | `self-hosted`, `Linux`, `RaspberryPi`, `armv7` |
+| macOS universal | `macos-14` |
+| Windows x64-v3, x64-v1 | `windows-2022` |
+| Windows ARM64 | `windows-11-arm` |
+| Windows i686 | `windows-2022` |
+| Linux x64-v3 and barren | `ubuntu-24.04` |
+| Linux ARM64 and barren | `ubuntu-24.04-arm` |
 
-The macOS runner must keep the Xcode project at
-`/opt/praat/praat.xcodeproj`, as described in `HOW_TO_BUILD_ONE.md`; this
-project is not part of the ordinary source checkout. The workflow copies it
-into the checkout before building. The Windows runners must have `make`, `7z`,
-and the matching MSYS2 toolchain available on `PATH`. Do not register a runner
-with more than one platform label unless it is genuinely able to build both
-targets.
+The workflow installs the required MSYS2 toolchain on each Windows runner.
+For macOS, it downloads the `praat.xcodeproj` archive from the latest upstream
+`praat/praat.github.io` release before building.
 
 ## Run the workflow
 
@@ -51,9 +43,9 @@ targets.
    specific commit or release branch.
 5. Keep **draft** enabled for the first run. Enable **prerelease** only for a
    prerelease version.
-6. Start the workflow and wait for every platform job to finish successfully.
+6. Start the workflow and wait for every supported platform job to finish successfully.
    The release job is blocked if even one edition fails.
-7. Review the generated notes and all 14 assets in the draft release. Rename or
+7. Review the generated notes and all 9 assets in the draft release. Rename or
    replace an asset only if the corresponding build output was independently
    verified.
 8. Publish the draft release.
@@ -65,7 +57,7 @@ or after removing the failed draft release and tag.
 
 ## Assets produced
 
-The release contains the current Windows, macOS, Linux, ChromeOS, and
-Raspberry Pi archives, including GUI and barren Linux variants. The filenames
-follow the conventions documented in `README.md`; the workflow checks that
-exactly 14 assets were produced before creating the release.
+The release contains the current Windows, macOS, and Linux archives, including
+GUI and barren Linux variants. The filenames follow the conventions documented
+in `README.md`; the workflow checks that exactly 9 assets were produced before
+creating the release.

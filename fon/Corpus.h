@@ -28,7 +28,11 @@ autoCorpus Corpus_create (conststring32 folderWithSoundFiles, conststring32 soun
 	conststring32 folderWithAnnotationFiles, conststring32 annotationFileExtension);
 
 autoCorpus Corpus_importFromCGN (conststring32 rootFolderPath);
-autoCorpus Corpus_importFromTIMIT(conststring32 rootFolderPath);
+#if defined (__APPLE__)
+	autoCorpus Corpus_importFromTIMIT (conststring32 rootFolderPath) __attribute__ ((weak_import));
+#else
+	autoCorpus Corpus_importFromTIMIT (conststring32 rootFolderPath);
+#endif
 
 autoTextGrid Corpus_extractTextGrid_number (Corpus me, integer recordingNumber);
 autoSound Corpus_extractSound_number (Corpus me, integer recordingNumber);

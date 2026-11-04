@@ -1753,6 +1753,8 @@ FORM (NEW_Corpus_importFromTIMIT, U"Import Corpus from TIMIT", U"Import Corpus f
 	OK
 DO
 	CREATE_ONE
+		Melder_require (Corpus_importFromTIMIT,
+			U"The TIMIT import command is unavailable in this build.");
 		autoCorpus result = Corpus_importFromTIMIT (folderName);
 	CREATE_ONE_END (U"TIMIT")
 }
